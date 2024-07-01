@@ -1,10 +1,15 @@
+import { words as INITIAL_WORDS } from './data.js';
+
 const $time = document.querySelector('time');
 const $paragraph = document.querySelector('p');
 const $input = document.querySelector('input');
+const $game = document.querySelector('#game');
+const $results = document.querySelector('#results');
+const $wpm = $results.querySelector('#results-wpm');
+const $accuracy = $results.querySelector('#results-accuracy');
+const $button = document.querySelector('#reload-button');
 
 const INITIAL_TIME = 30;
-
-const TEXT = 'the quick brown fox jumps over the lazy dog and this is one of the first projects that we can use to practice out Javascript knowledge for fun and make profit while we test our typing speed';
 
 let words = []
 let currentTime = INITIAL_TIME;
@@ -13,7 +18,13 @@ initGame();
 initEvents();
 
 function initGame() {
-	words = TEXT.split(' ').slice(0, 32);
+	$game.style.display = 'flex';
+	$results.style.display = 'none';
+	$input.value = '';
+
+	words = INITIAL_WORDS.toSorted(
+		() => Math.random() - 0.5
+	).slice(0, 32);
 	currentTime = INITIAL_TIME;
 	
 	$time.textContent = currentTime;
@@ -30,7 +41,7 @@ function initGame() {
 		`
 	}).join('');
 
-	$firstWord = $paragraph.querySelector('j-word');
+	const $firstWord = $paragraph.querySelector('j-word');
 	$firstWord.classList.add('active');
 	$firstWord.querySelector('j-letter').classList.add('active');
 
@@ -51,6 +62,7 @@ function initEvents() {
 	})
 	$input.addEventListener('keydown', onKeyDown);
 	$input.addEventListener('keyup', onKeyUp);
+	$button.addEventListener('click', initGame);
 }
 
 function onKeyDown(event) {
@@ -78,7 +90,35 @@ function onKeyDown(event) {
 		const classToAdd = hasMissedLetters ? 'marked' : 'correct';
 		$currentWord.classList.add(classToAdd);
 
+		return;
+	}
 
+	if (key === 'Backspace') {
+		const $prevWord = $currentWord.previousElementSibling;
+		const $prevLetter = $currentLetter.previousElementSibling;
+
+		if (!$prevWord && !$prevLetter) {
+			event.preventDefault();
+			return;
+		}
+
+		const $wordMarked = $paragraph.querySelector('j-word.marked');
+		if ($wordMarked && !$prevLetter) {
+			event.preventDefault();
+			$prevWord.classList.remove('marked');
+			$prevWord.classList.add('active');
+
+			const $letterToGo = $prevWord.querySelector('j-letter:last-child');
+
+			$currentLetter.classList.remove('active');
+			$letterToGo.classList.add('active');
+
+			$input.value = [
+				...$prevWord.querySelectorAll('j-letter.correct', 'j-letter.incorrect')
+			].map($el => {
+				return $el.classList.contains('correct') ? $el.innerText : '*';
+			}).join('');
+		}
 	}
 }
 
@@ -119,5 +159,17 @@ function onKeyUp() {
 }
 
 function gameOver() {
-	console.log('Game Over');
+	$game.style.display = 'none';
+	$results.style.display = 'flex';
+
+	const correctWords = $paragraph.querySelectorAll('j-word.correct').length;
+	const correctLetters = $paragraph.querySelectorAll('j-letter.correct').length;
+	const incorrectLetters = $paragraph.querySelectorAll('j-letter.incorrect').length;
+
+	const totalLetters = correctLetters + incorrectLetters;
+	const accuracy = totalLetters > 0 ? (correctLetters / totalLetters) * 100 : 0;
+
+	const wpm = correctWords * 60 / INITIAL_TIME;
+	$wpm.textContent = `${wpm.toFixed(2)} WPM`;
+	$accuracy.textContent = `${accuracy.toFixed(2)}%`;
 }
